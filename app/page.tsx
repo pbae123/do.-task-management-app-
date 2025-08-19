@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 type Task = {
   id: string;
@@ -13,7 +13,6 @@ type Task = {
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentlyEditingTaskId, setCurrentlyEditingTaskId] = useState<string | null>(null);
-  const [editingContent, setEditingContent] = useState<string>('');
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -48,21 +47,30 @@ export default function Home() {
 
     const newTask = await res.json();
     setTasks((prev) => [...prev, newTask]);
-    setEditingContent(newTask.content ?? '');
     setCurrentlyEditingTaskId(newTask.id); // Immediately allow editing
   };
 
   // Edit handler
   const handleEditTask = (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    setEditingContent(task?.content ?? '');
     setCurrentlyEditingTaskId(id);
   };
 
-  // Focus editable area when entering edit mode
-  useEffect(() => {
-    if (currentlyEditingTaskId) {
-      editingRef.current?.focus();
+  // Prepare editable area when entering edit mode (set initial text and move caret to end)
+  useLayoutEffect(() => {
+    if (!currentlyEditingTaskId) return;
+    const node = editingRef.current;
+    if (!node) return;
+    const currentTask = tasks.find((t) => t.id === currentlyEditingTaskId);
+    if (!currentTask) return;
+    node.innerText = currentTask.content ?? '';
+    node.focus();
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      range.collapse(false); // place caret at end
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
   }, [currentlyEditingTaskId]);
 
@@ -168,10 +176,7 @@ export default function Home() {
                     setCurrentlyEditingTaskId(null);
                   }
                 }}
-                onInput={(e) => setEditingContent((e.target as HTMLDivElement).innerText)}
-              >
-                {editingContent}
-              </div>
+              />
             ) : (
               <div className="cursor-text whitespace-pre-wrap">
                 {task.content}
