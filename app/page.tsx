@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Task = {
   id: string;
@@ -12,92 +12,248 @@ type Task = {
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [currentlyEditingTaskId, setCurrentlyEditingTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Fetch tasks
+  // Fetch tasks on load
   useEffect(() => {
     const fetchTasks = async () => {
-      const res = await fetch('/api/tasks');
-      const data = await res.json();
-      setTasks(data);
+      try {
+        const res = await fetch('/api/tasks');
+        const data = await res.json();
+        setTasks(data);
+      } catch (error) {
+        console.error('Failed to fetch tasks:', error);
+      }
     };
     fetchTasks();
   }, []);
 
-  // Create task at double-click position
-  const handleDoubleClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+  // Create new task
+  const createTask = async (x: number, y: number) => {
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: '',
+          x,
+          y,
+          pageId: 'default',
+        }),
+      });
+
+      if (!res.ok) return;
+
+      const newTask = await res.json();
+      setTasks(prev => [...prev, newTask]);
+      setEditingContent('');
+      setEditingTaskId(newTask.id);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  };
+
+  // Handle double-click on canvas
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: '',
-        x,
-        y,
-        pageId: 'default',
-      }),
-    });
-
-    const newTask = await res.json();
-    setTasks((prev) => [...prev, newTask]);
-    setCurrentlyEditingTaskId(newTask.id); // Immediately allow editing
+    createTask(x, y);
+    setSelectedTaskId(null); // Clear selection when creating new task
   };
 
-  // Edit handler
-  const handleEditTask = (id: string) => {
-    setCurrentlyEditingTaskId(id);
+  // Start editing task
+  const startEditing = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setEditingContent(task.content);
+      setEditingTaskId(taskId);
+      setSelectedTaskId(null); // Clear selection when editing
+    }
   };
+
+  // Save task content
+  const saveTask = async (taskId: string, content: string) => {
+    // If content is empty or only whitespace, delete the task
+    if (!content.trim()) {
+      deleteTask(taskId);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/tasks?id=${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+
+      if (res.ok) {
+        const updatedTask = await res.json();
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+      }
+    } catch (error) {
+      console.error('Failed to save task:', error);
+    }
+    setEditingTaskId(null);
+  };
+
+  // Delete task
+  const deleteTask = async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks?id=${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        if (editingTaskId === taskId) {
+          setEditingTaskId(null);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
+  };
+
+  // Focus textarea when editing starts
+  useEffect(() => {
+    if (editingTaskId && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(
+          textareaRef.current.value.length,
+          textareaRef.current.value.length
+        );
+      }, 10);
+    }
+  }, [editingTaskId]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('Key pressed:', e.key, 'Selected task:', selectedTaskId); // Debug log
+      
+      if (editingTaskId) {
+        if (e.key === 'Escape') {
+          setEditingTaskId(null);
+        }
+      } else if (selectedTaskId && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault();
+        console.log('Deleting task:', selectedTaskId); // Debug log
+        deleteTask(selectedTaskId);
+        setSelectedTaskId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingTaskId, selectedTaskId]);
+
+  // Handle dragging
+  useEffect(() => {
+    if (!draggingTaskId) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current || !dragOffset) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const nextX = e.clientX - rect.left - dragOffset.x;
+      const nextY = e.clientY - rect.top - dragOffset.y;
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === draggingTaskId ? { ...t, x: nextX, y: nextY } : t
+        )
+      );
+    };
+
+    const handleMouseUp = async () => {
+      const dragged = tasks.find(t => t.id === draggingTaskId);
+      setDraggingTaskId(null);
+      setDragOffset(null);
+      
+      if (dragged) {
+        try {
+          await fetch(`/api/tasks?id=${dragged.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ x: dragged.x, y: dragged.y }),
+          });
+        } catch (error) {
+          console.error('Failed to save position:', error);
+        }
+      }
+      
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingTaskId, dragOffset, tasks]);
 
   return (
     <div
-      onDoubleClick={handleDoubleClick}
-      className="relative w-screen h-screen bg-gray-100 overflow-hidden"
+      ref={containerRef}
+      onDoubleClick={handleCanvasDoubleClick}
+      className="relative w-screen h-screen bg-neutral-300 dot-grid overflow-auto cursor-crosshair"
     >
       {tasks.map((task) => {
-        const isEditing = currentlyEditingTaskId === task.id;
+        const isEditing = editingTaskId === task.id;
+        const isDragging = draggingTaskId === task.id;
 
         return (
           <div
-            key={task.id ?? `${task.x}-${task.y}-${Math.random()}`}
-            className="task absolute"
+            key={task.id}
+            className={`absolute ${isDragging ? 'z-50' : ''} ${selectedTaskId === task.id ? 'ring-2 ring-blue-500' : ''}`}
             style={{ left: task.x, top: task.y }}
-            onDoubleClick={() => handleEditTask(task.id)}
+            onClick={(e) => {
+              if (isEditing) return;
+              e.stopPropagation();
+              setSelectedTaskId(task.id);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              startEditing(task.id);
+            }}
+            onMouseDown={(e) => {
+              if (isEditing) return;
+              e.stopPropagation();
+              if (!containerRef.current) return;
+              const rect = containerRef.current.getBoundingClientRect();
+              const offsetX = e.clientX - rect.left - task.x;
+              const offsetY = e.clientY - rect.top - task.y;
+              setDraggingTaskId(task.id);
+              setDragOffset({ x: offsetX, y: offsetY });
+            }}
           >
             {isEditing ? (
-              <input
-                autoFocus
-                className="bg-white border px-1 rounded shadow"
-                defaultValue={task.content}
-                onBlur={async (e) => {
-                  const newContent = e.target.value;
-                  const res = await fetch(`/api/tasks?id=${task.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: newContent }),
-                  });
-
-                  if (!res.ok) {
-                    console.error('PATCH failed:', await res.text());
-                  } else {
-                    const updatedTask = await res.json();
-                    setTasks((prev) =>
-                      prev.map((t) => (t.id === task.id ? updatedTask : t))
-                    );
-                    setCurrentlyEditingTaskId(null);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    (e.target as HTMLInputElement).blur();
-                  }
+              <textarea
+                ref={textareaRef}
+                value={editingContent}
+                onChange={(e) => setEditingContent(e.target.value)}
+                onBlur={() => saveTask(task.id, editingContent)}
+                className="outline-none resize-none bg-transparent border-none p-0 m-0 text-black font-sans text-base leading-relaxed min-w-[100px] min-h-[20px] overflow-hidden"
+                style={{
+                  fontFamily: 'inherit',
+                  fontSize: 'inherit',
+                  lineHeight: 'inherit',
+                  width: `${Math.max(100, editingContent.length * 8)}px`,
+                  height: `${Math.max(20, editingContent.split('\n').length * 24)}px`,
+                  overflow: 'hidden'
                 }}
               />
             ) : (
-              <div className="px-2 py-1 bg-white rounded shadow cursor-text">
-                {task.content || 'New Task'}
+              <div className="text-black font-sans text-base leading-relaxed whitespace-pre-wrap cursor-text min-w-[100px] min-h-[20px]">
+                {task.content || 'Double-click to edit...'}
               </div>
             )}
           </div>

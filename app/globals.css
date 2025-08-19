@@ -27,3 +27,9 @@ body {
   font-family: sans-serif;
 }
 
+/* Dot grid pattern */
+.dot-grid {
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+

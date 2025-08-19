@@ -20,6 +20,7 @@ model Task {
   x         Float
   y         Float
   pageId    String
+  page      Page     @relation(fields: [pageId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

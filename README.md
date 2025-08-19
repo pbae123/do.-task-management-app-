@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Task App
+
+A modern, interactive task management application built with Next.js, React, and Prisma. Create, edit, and organize tasks by double-clicking anywhere on the canvas and dragging them around.
+
+## Features
+
+- **Double-click anywhere** to create a new task
+- **Double-click tasks** to edit their content
+- **Drag and drop** tasks to reposition them
+- **Keyboard shortcuts** for quick actions
+- **Real-time persistence** with PostgreSQL database
+- **Modern UI** with hover effects and visual feedback
+- **Dark mode support**
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 18+ 
+- PostgreSQL database
+- npm, yarn, pnpm, or bun
+
+### Setup
+
+1. **Clone and install dependencies:**
+   ```bash
+   cd my-todo-app
+   npm install
+   ```
+
+2. **Set up your database:**
+   - Create a PostgreSQL database
+   - Create a `.env` file in the root directory with your database URL:
+     ```
+     DATABASE_URL="postgresql://username:password@localhost:5432/taskapp"
+     ```
+
+3. **Initialize the database:**
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+4. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open [http://localhost:3000](http://localhost:3000)** in your browser
+
+## How to Use
+
+### Creating Tasks
+- **Double-click anywhere** on the canvas to create a new task at that location
+- The task will automatically enter edit mode so you can start typing
+
+### Editing Tasks
+- **Double-click any task** to edit its content
+- Click outside the task or press `Escape` to cancel editing
+- Press `Cmd+Enter` to save changes
+
+### Moving Tasks
+- **Click and drag** any task to move it around the canvas
+- Tasks automatically save their new position
+
+### Deleting Tasks
+- **Hover over a task** to see the delete button (×) in the top-right corner
+- Click the delete button or press `Cmd+Delete` while editing
+
+### Keyboard Shortcuts
+- `Escape` - Cancel editing
+- `Cmd+Enter` - Save task content
+- `Cmd+Delete` - Delete current task
+
+## Tech Stack
+
+- **Frontend:** Next.js 15, React 19, TypeScript
+- **Styling:** Tailwind CSS
+- **Database:** PostgreSQL with Prisma ORM
+- **API:** Next.js API Routes
+
+## Database Schema
+
+The app uses a simple schema with two models:
+- `Page` - Represents a workspace/page
+- `Task` - Individual tasks with position and content
+
+## Development
+
+### Project Structure
+```
+my-todo-app/
+├── app/
+│   ├── api/tasks/     # API routes for CRUD operations
+│   ├── components/    # React components
+│   ├── globals.css    # Global styles
+│   ├── layout.tsx     # Root layout
+│   └── page.tsx       # Main task app page
+├── prisma/
+│   └── schema.prisma  # Database schema
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Available Scripts
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app can be deployed to any platform that supports Next.js:
 
-## Learn More
+1. **Vercel** (recommended):
+   - Connect your GitHub repository
+   - Add your `DATABASE_URL` environment variable
+   - Deploy automatically
 
-To learn more about Next.js, take a look at the following resources:
+2. **Railway/Heroku:**
+   - Set up PostgreSQL addon
+   - Configure environment variables
+   - Deploy with `npm run build && npm start`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Feel free to submit issues and enhancement requests!

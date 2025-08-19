@@ -13,8 +13,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { content, x, y, pageId } = body;
 
-  // Validate request body
-  if (!content || typeof x !== 'number' || typeof y !== 'number' || !pageId) {
+  // Validate request body (allow empty string for content)
+  const isContentProvided = content !== undefined; // allow ""
+  if (!isContentProvided || typeof x !== 'number' || typeof y !== 'number' || !pageId) {
     return NextResponse.json({ error: 'Missing or invalid fields' }, { status: 400 });
   }
 
