@@ -18,6 +18,27 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editingRef = useRef<HTMLDivElement | null>(null);
 
+  const scrollCaretIntoView = () => {
+    const container = containerRef.current;
+    const node = editingRef.current;
+    if (!container || !node) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    const caretRect = range.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    const overRight = caretRect.right - containerRect.right;
+    const overLeft = containerRect.left - caretRect.left;
+    const overBottom = caretRect.bottom - containerRect.bottom;
+    const overTop = containerRect.top - caretRect.top;
+
+    if (overRight > 0) container.scrollLeft += overRight + 16;
+    if (overLeft > 0) container.scrollLeft -= overLeft + 16;
+    if (overBottom > 0) container.scrollTop += overBottom + 16;
+    if (overTop > 0) container.scrollTop -= overTop + 16;
+  };
+
   // Fetch tasks
   useEffect(() => {
     const fetchTasks = async () => {
@@ -72,6 +93,8 @@ export default function Home() {
       selection.removeAllRanges();
       selection.addRange(range);
     }
+    // Ensure caret is visible after positioning
+    scrollCaretIntoView();
   }, [currentlyEditingTaskId]);
 
   // Drag: mouse move and up listeners
@@ -157,7 +180,7 @@ export default function Home() {
                 ref={editingRef}
                 contentEditable
                 suppressContentEditableWarning
-                className="outline-none whitespace-pre-wrap"
+                className="outline-none whitespace-pre inline-block"
                 onBlur={async (e) => {
                   const newContent = (e.target as HTMLDivElement).innerText;
                   const res = await fetch(`/api/tasks?id=${task.id}`, {
@@ -176,9 +199,10 @@ export default function Home() {
                     setCurrentlyEditingTaskId(null);
                   }
                 }}
+                onInput={scrollCaretIntoView}
               />
             ) : (
-              <div className="cursor-text whitespace-pre-wrap">
+              <div className="cursor-text whitespace-pre inline-block">
                 {task.content}
               </div>
             )}
