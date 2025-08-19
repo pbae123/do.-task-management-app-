@@ -64,7 +64,10 @@ export default function Home() {
             key={task.id ?? `${task.x}-${task.y}-${Math.random()}`}
             className="task absolute"
             style={{ left: task.x, top: task.y }}
-            onDoubleClick={() => handleEditTask(task.id)}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              handleEditTask(task.id);
+            }}
           >
             {isEditing ? (
               <input
