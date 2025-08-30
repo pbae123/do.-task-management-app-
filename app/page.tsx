@@ -126,10 +126,6 @@ export default function Home() {
     if (editingTaskId && textareaRef.current) {
       setTimeout(() => {
         textareaRef.current?.focus();
-        textareaRef.current?.setSelectionRange(
-          textareaRef.current.value.length,
-          textareaRef.current.value.length
-        );
       }, 10);
     }
   }, [editingTaskId]);
@@ -213,7 +209,7 @@ export default function Home() {
         return (
           <div
             key={task.id}
-            className={`absolute ${isDragging ? 'z-50' : ''} ${selectedTaskId === task.id ? 'ring-2 ring-blue-500' : ''}`}
+            className={`absolute ${isDragging ? 'z-50' : ''}`}
             style={{ left: task.x, top: task.y }}
             onClick={(e) => {
               if (isEditing) return;
@@ -241,19 +237,28 @@ export default function Home() {
                 value={editingContent}
                 onChange={(e) => setEditingContent(e.target.value)}
                 onBlur={() => saveTask(task.id, editingContent)}
-                className="outline-none resize-none bg-transparent border-none p-0 m-0 text-black font-sans text-base leading-relaxed min-w-[100px] min-h-[20px] overflow-hidden"
+                className="outline-none resize-none bg-transparent border-none p-0 m-0 text-black font-sans text-base min-w-[100px] min-h-[20px] overflow-hidden"
                 style={{
-                  fontFamily: 'inherit',
-                  fontSize: 'inherit',
-                  lineHeight: 'inherit',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  fontSize: '16px',
+                  lineHeight: '1.4',
                   width: `${Math.max(100, editingContent.length * 8)}px`,
-                  height: `${Math.max(20, editingContent.split('\n').length * 24)}px`,
+                  height: `${Math.max(20, editingContent.split('\n').length * 20)}px`,
                   overflow: 'hidden'
                 }}
               />
             ) : (
-              <div className="text-black font-sans text-base leading-relaxed whitespace-pre-wrap cursor-text min-w-[100px] min-h-[20px]">
-                {task.content || 'Double-click to edit...'}
+              <div 
+                className="text-black font-sans text-base whitespace-pre-wrap cursor-text min-w-[100px] min-h-[20px]"
+                style={{ 
+                  lineHeight: '1.4',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  fontSize: '16px',
+                  width: `${Math.max(100, task.content.length * 8)}px`,
+                  height: `${Math.max(20, task.content.split('\n').length * 20)}px`
+                }}
+              >
+                {task.content}
               </div>
             )}
           </div>

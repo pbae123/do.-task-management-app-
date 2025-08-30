@@ -1,43 +1,91 @@
-// app/components/Task.tsx
-"use client";
-import { useState } from "react";
+'use client';
+
+import { useRef, useEffect } from 'react';
 
 type TaskProps = {
-  id: string;
-  content: string;
-  x: number;
-  y: number;
-  pageId: string; 
-  onDoubleClick: (id: string) => void; 
+  task: {
+    id: string;
+    content: string;
+    x: number;
+    y: number;
+  };
+  isEditing: boolean;
+  isSelected: boolean;
+  isDragging: boolean;
+  editingContent: string;
+  onContentChange: (content: string) => void;
+  onSave: () => void;
+  onSelect: () => void;
+  onStartEditing: () => void;
+  onStartDragging: (e: React.MouseEvent) => void;
 };
 
-export default function Task({ id, content, x, y, onDoubleClick }: TaskProps) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(content);
+export default function Task({
+  task,
+  isEditing,
+  isSelected,
+  isDragging,
+  editingContent,
+  onContentChange,
+  onSave,
+  onSelect,
+  onStartEditing,
+  onStartDragging,
+}: TaskProps) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const handleDoubleClick = () => setEditing(true);
-
-  const handleBlur = () => {
-    setEditing(false);
-    // TODO: call PATCH API to update content
-  };
+  // Focus textarea when editing starts
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(
+          textareaRef.current.value.length,
+          textareaRef.current.value.length
+        );
+      }, 10);
+    }
+  }, [isEditing]);
 
   return (
     <div
-      className="absolute bg-white shadow p-2 rounded shadow task"
-      style = {{ top: y, left: x}}
-      onDoubleClick = {() => onDoubleClick(id)}
+      className={`absolute ${isDragging ? 'z-50' : ''} ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
+      style={{ left: task.x, top: task.y }}
+      onClick={(e) => {
+        if (isEditing) return;
+        e.stopPropagation();
+        onSelect();
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onStartEditing();
+      }}
+      onMouseDown={(e) => {
+        if (isEditing) return;
+        e.stopPropagation();
+        onStartDragging(e);
+      }}
     >
-      {editing ? (
-        <input
-          className="border rounded px-2 py-1"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={handleBlur}
-          autoFocus
+      {isEditing ? (
+        <textarea
+          ref={textareaRef}
+          value={editingContent}
+          onChange={(e) => onContentChange(e.target.value)}
+          onBlur={onSave}
+          className="outline-none resize-none bg-transparent border-none p-0 m-0 text-black font-sans text-base leading-relaxed min-w-[100px] min-h-[20px] overflow-hidden"
+          style={{
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            lineHeight: 'inherit',
+            width: `${Math.max(100, editingContent.length * 8)}px`,
+            height: `${Math.max(20, editingContent.split('\n').length * 24)}px`,
+            overflow: 'hidden'
+          }}
         />
       ) : (
-        <p>{text}</p>
+        <div className="text-black font-sans text-base leading-relaxed whitespace-pre-wrap cursor-text min-w-[100px] min-h-[20px]">
+          {task.content || 'Double-click to edit...'}
+        </div>
       )}
     </div>
   );
